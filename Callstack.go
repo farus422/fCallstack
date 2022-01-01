@@ -149,6 +149,12 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 	}
 }
 
+func (cs *SCallstack) Clean() {
+	if cs.callers == nil {
+		cs.callers = cs.callers[:0]
+	}
+}
+
 type sHiddenFunctions struct {
 	mutex     sync.RWMutex
 	num       int
