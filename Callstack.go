@@ -149,6 +149,13 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 	}
 }
 
+func (cs *SCallstack) GetFunctionName(index int) string {
+	if len(cs.callers) <= index {
+		return ""
+	}
+	return cs.callers[index].Function
+}
+
 func (cs *SCallstack) Clean() {
 	if cs.callers == nil {
 		cs.callers = cs.callers[:0]
