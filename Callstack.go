@@ -2,6 +2,7 @@ package fCallstack
 
 import (
 	"fmt"
+	"path"
 	"runtime"
 	"strings"
 	"sync"
@@ -36,6 +37,8 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 	var n int
 	var pcs []uintptr
 	var frame runtime.Frame
+	var funcname string
+	var funcs []string
 	for size > 0 {
 		pcs = make([]uintptr, size)
 		n = runtime.Callers(frontSkip+2, pcs)
@@ -69,7 +72,9 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 			more = n > 0
 			for more {
 				frame, more = frames.Next()
-				cs.callers[index].Function = frame.Function
+				_, funcname = path.Split(frame.Function)
+				funcs = strings.SplitAfterN(funcname, ".", 2)
+				cs.callers[index].Function = funcs[1]
 				cs.callers[index].File = frame.File
 				cs.callers[index].Line = frame.Line
 				index++
@@ -92,6 +97,8 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 	var n int
 	var pcs []uintptr
 	var frame runtime.Frame
+	var funcname string
+	var funcs []string
 	for size > 0 {
 		pcs = make([]uintptr, size)
 		n = runtime.Callers(frontSkip+2, pcs)
@@ -137,7 +144,10 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 			more = n > 0
 			for more {
 				frame, more = frames.Next()
-				cs.callers[index].Function = frame.Function
+				// cs.callers[index].Function = frame.Function
+				_, funcname = path.Split(frame.Function)
+				funcs = strings.SplitAfterN(funcname, ".", 2)
+				cs.callers[index].Function = funcs[1]
 				cs.callers[index].File = frame.File
 				cs.callers[index].Line = frame.Line
 				index++
