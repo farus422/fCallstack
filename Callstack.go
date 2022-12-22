@@ -9,8 +9,9 @@ import (
 )
 
 type SCaller struct {
+	Package  string
 	Function string
-	File     string
+	File     string // full path
 	Line     int
 }
 type SCallstack struct {
@@ -73,7 +74,8 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 			for more {
 				frame, more = frames.Next()
 				_, funcname = path.Split(frame.Function)
-				funcs = strings.SplitAfterN(funcname, ".", 2)
+				funcs = strings.SplitN(funcname, ".", 2)
+				cs.callers[index].Package = funcs[0]
 				cs.callers[index].Function = funcs[1]
 				cs.callers[index].File = frame.File
 				cs.callers[index].Line = frame.Line
@@ -118,9 +120,9 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 					}
 				}
 				// 若是系統自動引發panic則會在發生錯的地方呼叫panic()，所以必須跳過堆疊上方自動呼叫的部分
-				if searchdone == false {
+				if !searchdone {
 					if searching {
-						if strings.HasPrefix(frame.Function, "runtime.") == false {
+						if !strings.HasPrefix(frame.Function, "runtime.") {
 							begin = n
 							searchdone = true
 						}
@@ -146,7 +148,8 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 				frame, more = frames.Next()
 				// cs.callers[index].Function = frame.Function
 				_, funcname = path.Split(frame.Function)
-				funcs = strings.SplitAfterN(funcname, ".", 2)
+				funcs = strings.SplitN(funcname, ".", 2)
+				cs.callers[index].Package = funcs[0]
 				cs.callers[index].Function = funcs[1]
 				cs.callers[index].File = frame.File
 				cs.callers[index].Line = frame.Line
