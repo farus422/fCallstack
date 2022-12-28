@@ -69,6 +69,7 @@ func main() {
 
 `GetCallstack(frontSkip int, hideTheCallStartFunc string)`
 + frontSkip
+
 從叫用 GetCallstack() 的地方開始，要往上略過多少層
 給0等於: 叫用GetCallstack()的地方開始列出
 + hideTheCallStartFunc
