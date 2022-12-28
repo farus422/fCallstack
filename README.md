@@ -68,25 +68,21 @@ func main() {
 **獲取目前的呼叫堆疊資訊**
 
 `GetCallstack(frontSkip int, hideTheCallStartFunc string)`
-+ frontSkip
-
-從叫用 GetCallstack() 的地方開始，要往上略過多少層
++ frontSkip:從叫用 GetCallstack() 的地方開始，要往上略過多少層
 給0等於: 叫用GetCallstack()的地方開始列出
-+ hideTheCallStartFunc
- 要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
++ hideTheCallStartFunc: 要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 
 **獲取目前的呼叫堆疊資訊，配合recover()使用**
 
 `GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc string)`
-+ frontSkip
- 從叫用 GetCallstack() 的地方開始，要往上略過多少層
++ frontSkip: 從叫用 GetCallstack() 的地方開始，要往上略過多少層
  給0等於: 叫用GetCallstack()的地方開始列出
-+ hideTheCallStartFunc
- 要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
++ hideTheCallStartFunc: 要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 
 **取得物件所獲取的呼叫堆疊資訊**
 
 `GetCallers() []SCaller`
+
 返回 []SCaller
 
 **用Printf()打印出呼叫堆疊**
@@ -96,8 +92,7 @@ func main() {
 **獲取指定堆疊的呼叫函式名稱**
 
 `GetFunctionName(index int) string`
-+ index
-給定堆疊的index
++ index: 給定堆疊的index
 
 **釋放內部空間以便重用物件**
 
