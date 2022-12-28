@@ -18,19 +18,23 @@ type SCallstack struct {
 	callers []SCaller
 }
 
+// 取得物件所獲取的呼叫堆疊資訊
 func (cs *SCallstack) GetCallers() []SCaller {
 	if (cs.callers == nil) || (len(cs.callers) <= 0) {
 		return nil
 	}
 	return cs.callers
 }
+
+// 用Printf()打印出呼叫堆疊
 func (cs *SCallstack) Print() {
 	for _, caller := range cs.callers {
 		fmt.Printf("%s:%d %s()\n", caller.File, caller.Line, caller.Function)
 	}
 }
 
-// frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方也會出現在呼叫堆疊中
+// 獲取目前的呼叫堆疊資訊
+// frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方開始列出
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 	size := 16
@@ -90,7 +94,8 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 	}
 }
 
-// frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方也會出現在呼叫堆疊中
+// 獲取目前的呼叫堆疊資訊，配合recover()使用
+// frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方開始列出
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc string) {
 	size := 16
@@ -167,6 +172,7 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 	}
 }
 
+// 獲取指定堆疊的呼叫函式名稱
 func (cs *SCallstack) GetFunctionName(index int) string {
 	if len(cs.callers) <= index {
 		return ""
@@ -174,8 +180,9 @@ func (cs *SCallstack) GetFunctionName(index int) string {
 	return cs.callers[index].Function
 }
 
+// 釋放內部空間以便重用物件
 func (cs *SCallstack) Clean() {
-	if cs.callers == nil {
+	if cs.callers != nil {
 		cs.callers = cs.callers[:0]
 	}
 }
