@@ -2,12 +2,12 @@
 
 ### 目錄<span id="目錄"></span>
 
-<a href="#example">fCallback 使用</a><br />
+<a href="#example">Usage</a><br />
 <a href="#object">物件方法</a><br />
 
 ---------------------------------------------------------
 
-## fCallback 使用<span id="example"></span>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#目錄">(回到目錄)</a>
+## Usage<span id="example"></span>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#目錄">(回到目錄)</a>
 範例：列出呼叫堆疊
 ```golang
 package main
@@ -69,8 +69,8 @@ func main() {
 
 `GetCallstack(frontSkip int, hideTheCallStartFunc string)`
 + frontSkip
- 從叫用 GetCallstack() 的地方開始，要往上略過多少層
- 給0等於: 叫用GetCallstack()的地方開始列出
+從叫用 GetCallstack() 的地方開始，要往上略過多少層
+給0等於: 叫用GetCallstack()的地方開始列出
 + hideTheCallStartFunc
  要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 
