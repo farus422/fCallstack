@@ -54,12 +54,14 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 						callerIndex = n
 					} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(frame.Function) {
 						callerIndex = n
-					} else if strings.Compare(frame.Function, "runtime.goexit") == 0 {
+					} else if frame.Function == "runtime.goexit" {
+						// } else if strings.Compare(frame.Function, "runtime.goexit") == 0 {
 						break
 					}
 				}
 				n++
-				if strings.Compare(frame.Function, "main.main") == 0 {
+				// if strings.Compare(frame.Function, "main.main") == 0 {
+				if frame.Function == "main.main" {
 					break
 				}
 			}
@@ -115,23 +117,26 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 						callerIndex = n
 					} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(frame.Function) {
 						callerIndex = n
-					} else if strings.Compare(frame.Function, "runtime.goexit") == 0 {
+						// } else if strings.Compare(frame.Function, "runtime.goexit") == 0 {
+					} else if frame.Function == "runtime.goexit" {
 						break
 					}
 				}
-				// 若是系統自動引發panic則會在發生錯的地方呼叫panic()，所以必須跳過堆疊上方自動呼叫的部分
+				// 若是系統自動引發panic則會在發生錯誤的地方呼叫panic()，所以必須跳過堆疊上方自動呼叫的部分
 				if !searchdone {
 					if searching {
 						if !strings.HasPrefix(frame.Function, "runtime.") {
 							begin = n
 							searchdone = true
 						}
-					} else if (strings.Compare(frame.Function, "runtime.gopanic") == 0) || (strings.Compare(frame.Function, "runtime.panic") == 0) || (strings.Compare(frame.Function, "runtime.sigpanic") == 0) {
+						// } else if (strings.Compare(frame.Function, "runtime.gopanic") == 0) || (strings.Compare(frame.Function, "runtime.panic") == 0) || (strings.Compare(frame.Function, "runtime.sigpanic") == 0) {
+					} else if (frame.Function == "runtime.gopanic") || (frame.Function == "runtime.panic") || (frame.Function == "runtime.sigpanic") {
 						searching = true
 					}
 				}
 				n++
-				if strings.Compare(frame.Function, "main.main") == 0 {
+				// if strings.Compare(frame.Function, "main.main") == 0 {
+				if frame.Function == "main.main" {
 					break
 				}
 			}
@@ -173,6 +178,24 @@ func (cs *SCallstack) Clean() {
 	if cs.callers == nil {
 		cs.callers = cs.callers[:0]
 	}
+}
+
+// frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方也會出現在呼叫堆疊中
+// hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
+// 如果您講求效率，那麼您可以自己建立SCallstack並呼叫SCallstack.GetCallstack(frontSkip, hideTheCallStartFunc)
+func GetCallstack(frontSkip int, hideTheCallStartFunc string) *SCallstack {
+	cs := &SCallstack{}
+	cs.GetCallstack(frontSkip+1, hideTheCallStartFunc)
+	return cs
+}
+
+// frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方也會出現在呼叫堆疊中
+// hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
+// 如果您講求效率，那麼您可以自己建立SCallstack並呼叫SCallstack.GetCallstackWithPanic(frontSkip, hideTheCallStartFunc)
+func GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc string) *SCallstack {
+	cs := &SCallstack{}
+	cs.GetCallstackWithPanic(frontSkip+1, hideTheCallStartFunc)
+	return cs
 }
 
 type sHiddenFunctions struct {
