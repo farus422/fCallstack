@@ -37,7 +37,7 @@ func (cs *SCallstack) Print() {
 // frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方開始列出
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
-	size := 16
+	size := 32
 	callerIndex := 0
 	var n int
 	var pcs []uintptr
@@ -98,7 +98,7 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 // frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方開始列出
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc string) {
-	size := 16
+	size := 32
 	searching := false
 	searchdone := false
 	begin := 0
@@ -110,7 +110,7 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 	var funcs []string
 	for size > 0 {
 		pcs = make([]uintptr, size)
-		n = runtime.Callers(frontSkip+2, pcs)
+		n = runtime.Callers(0, pcs)
 		if n < size {
 			frames := runtime.CallersFrames(pcs[:n])
 			more := n > 0
@@ -131,12 +131,15 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 				if !searchdone {
 					if searching {
 						if !strings.HasPrefix(frame.Function, "runtime.") {
-							begin = n
+							begin = n + frontSkip
 							searchdone = true
 						}
 						// } else if (strings.Compare(frame.Function, "runtime.gopanic") == 0) || (strings.Compare(frame.Function, "runtime.panic") == 0) || (strings.Compare(frame.Function, "runtime.sigpanic") == 0) {
-					} else if (frame.Function == "runtime.gopanic") || (frame.Function == "runtime.panic") || (frame.Function == "runtime.sigpanic") {
-						searching = true
+					} else {
+						switch frame.Function {
+						case "runtime.gopanic", "runtime.panic", "runtime.sigpanic":
+							searching = true
+						}
 					}
 				}
 				n++
@@ -146,7 +149,13 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 				}
 			}
 			if callerIndex > 0 {
+				if callerIndex >= n {
+					callerIndex = n - 1
+				}
 				n = callerIndex
+			}
+			if begin > n {
+				begin = n
 			}
 
 			cs.callers = make([]SCaller, n-begin)
@@ -201,7 +210,7 @@ func GetCallstack(frontSkip int, hideTheCallStartFunc string) *SCallstack {
 // 如果您講求效率，那麼您可以自己建立SCallstack並呼叫SCallstack.GetCallstackWithPanic(frontSkip, hideTheCallStartFunc)
 func GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc string) *SCallstack {
 	cs := &SCallstack{}
-	cs.GetCallstackWithPanic(frontSkip+1, hideTheCallStartFunc)
+	cs.GetCallstackWithPanic(frontSkip, hideTheCallStartFunc)
 	return cs
 }
 
