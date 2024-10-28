@@ -33,7 +33,7 @@ func (cs *SCallstack) Print() {
 	}
 }
 
-// 獲取目前的呼叫堆疊資訊
+// 獲取目前的呼叫堆疊資訊，並且去除掉golang框架的堆疊部分
 // frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方開始列出
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
@@ -58,7 +58,7 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 						callerIndex = n
 					} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(frame.Function) {
 						callerIndex = n
-					} else if frame.Function == "runtime.goexit" {
+					} else if frame.Function == "runtime.goexit" || frame.Function == "testing.tRunner" {
 						// } else if strings.Compare(frame.Function, "runtime.goexit") == 0 {
 						break
 					}
@@ -94,7 +94,7 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 	}
 }
 
-// 獲取目前的呼叫堆疊資訊，配合recover()使用
+// 獲取目前的呼叫堆疊資訊，並且去除掉golang框架的堆疊部分，配合recover()使用
 // frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方開始列出
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc string) {
@@ -123,7 +123,7 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 					} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(frame.Function) {
 						callerIndex = n
 						// } else if strings.Compare(frame.Function, "runtime.goexit") == 0 {
-					} else if frame.Function == "runtime.goexit" {
+					} else if frame.Function == "runtime.goexit" || frame.Function == "testing.tRunner" {
 						break
 					}
 				}
