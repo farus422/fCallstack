@@ -61,9 +61,13 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 		frame, more = frames.Next()
 		if n > 0 {
 			if (hideTheCallStartFunc != "") && (strings.LastIndex(frame.Function, hideTheCallStartFunc) != -1) {
-				callerIndex = n
+				if callerIndex <= begin {
+					callerIndex = n
+				}
 			} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(frame.Function) {
-				callerIndex = n
+				if callerIndex <= begin {
+					callerIndex = n
+				}
 			} else if frame.Function == "runtime.goexit" || frame.Function == "testing.tRunner" {
 				break
 			}
@@ -134,9 +138,13 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 				frame, more = frames.Next()
 				if n > 0 {
 					if (hideTheCallStartFunc != "") && (strings.LastIndex(frame.Function, hideTheCallStartFunc) != -1) {
-						callerIndex = n
+						if callerIndex <= begin {
+							callerIndex = n
+						}
 					} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(frame.Function) {
-						callerIndex = n
+						if callerIndex <= begin {
+							callerIndex = n
+						}
 					} else if frame.Function == "runtime.goexit" || frame.Function == "testing.tRunner" {
 						break
 					}
