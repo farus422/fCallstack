@@ -12,7 +12,45 @@ type SCaller struct {
 	Package  string
 	Function string
 	File     string // full path
-	Line     int
+	Line     int64
+}
+
+// Format formats the frame according to the fmt.Formatter interface.
+//
+//	%s    source file
+//	%d    source line
+//	%n    function name
+//	%v    equivalent to %s:%d
+//
+// Format accepts flags that alter the printing of some verbs, as follows:
+//
+//	%+s   function name and path of source file relative to the compile time
+//	      GOPATH separated by \n\t (<funcname>\n\t<path>)
+//	%+v   equivalent to %+s:%d
+func (c SCaller) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 's':
+		switch {
+		case s.Flag('+'):
+			io.WriteString(s, c.Package)
+			io.WriteString(s, ".")
+			io.WriteString(s, c.Function)
+			io.WriteString(s, "\n\t")
+			io.WriteString(s, c.File)
+		default:
+			io.WriteString(s, path.Base(c.File)) // %v也會叫用這裡，考慮後決定不要顯示完整路徑 [/aa/bb/cc.go:xx /ii/jj/kk.go:xx] 感覺太長了
+		}
+	case 'd':
+		io.WriteString(s, strconv.FormatInt(c.Line, 10))
+	case 'n':
+		io.WriteString(s, c.Package)
+		io.WriteString(s, ".")
+		io.WriteString(s, c.Function)
+	case 'v':
+		c.Format(s, 's')
+		io.WriteString(s, ":")
+		c.Format(s, 'd')
+	}
 }
 
 type SCallstack struct {
@@ -110,7 +148,7 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 		callers[index].Package = funcs[0]
 		callers[index].Function = funcs[len(funcs)-1]
 		callers[index].File = frame.File
-		callers[index].Line = frame.Line
+		callers[index].Line = int64(frame.Line)
 	}
 }
 
@@ -187,7 +225,7 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 				callers[index].Package = funcs[0]
 				callers[index].Function = funcs[len(funcs)-1]
 				callers[index].File = frame.File
-				callers[index].Line = frame.Line
+				callers[index].Line = int64(frame.Line)
 			}
 			break
 		} else {
@@ -210,6 +248,19 @@ func (cs *SCallstack) Clean() {
 		cs.callers = cs.callers[:0]
 	}
 }
+
+// 考慮過後，還是覺得讓他用fmt預設的格式化輸出比較好
+// func (cs *SCallstack) Format(st fmt.State, verb rune) {
+// 	switch verb {
+// 	case 'v':
+// 		switch {
+// 		case st.Flag('+'):
+// 			for _, caller := range cs.callers {
+// 				fmt.Fprintf(st, "\n%+v", caller)
+// 			}
+// 		}
+// 	}
+// }
 
 // 獲取目前的呼叫堆疊資訊，並且去除掉golang框架的堆疊部分，如果這是個panic，則會從發生panic的地方開始列出
 // frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方也會出現在呼叫堆疊中
