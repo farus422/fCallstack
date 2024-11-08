@@ -2,56 +2,10 @@ package fCallstack
 
 import (
 	"fmt"
-	"path"
 	"runtime"
 	"strings"
 	"sync"
 )
-
-type SCaller struct {
-	Package  string
-	Function string
-	File     string // full path
-	Line     int64
-}
-
-// Format formats the frame according to the fmt.Formatter interface.
-//
-//	%s    source file
-//	%d    source line
-//	%n    function name
-//	%v    equivalent to %s:%d
-//
-// Format accepts flags that alter the printing of some verbs, as follows:
-//
-//	%+s   function name and path of source file relative to the compile time
-//	      GOPATH separated by \n\t (<funcname>\n\t<path>)
-//	%+v   equivalent to %+s:%d
-func (c SCaller) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 's':
-		switch {
-		case s.Flag('+'):
-			io.WriteString(s, c.Package)
-			io.WriteString(s, ".")
-			io.WriteString(s, c.Function)
-			io.WriteString(s, "\n\t")
-			io.WriteString(s, c.File)
-		default:
-			io.WriteString(s, path.Base(c.File)) // %v也會叫用這裡，考慮後決定不要顯示完整路徑 [/aa/bb/cc.go:xx /ii/jj/kk.go:xx] 感覺太長了
-		}
-	case 'd':
-		io.WriteString(s, strconv.FormatInt(c.Line, 10))
-	case 'n':
-		io.WriteString(s, c.Package)
-		io.WriteString(s, ".")
-		io.WriteString(s, c.Function)
-	case 'v':
-		c.Format(s, 's')
-		io.WriteString(s, ":")
-		c.Format(s, 'd')
-	}
-}
 
 type SCallstack struct {
 	callers []SCaller
@@ -65,25 +19,12 @@ func (cs *SCallstack) GetCallers() []SCaller {
 	return cs.callers
 }
 
-// 用Printf()打印出呼叫堆疊
-func (cs *SCallstack) Print() {
-	for _, caller := range cs.callers {
-		fmt.Printf("%s:%d %s()\n", caller.File, caller.Line, caller.Function)
-	}
-}
-
 // 獲取目前的呼叫堆疊資訊，並且去除掉golang框架的堆疊部分，如果這是個panic，則會從發生panic的地方開始列出
 // frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方開始列出
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
 func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
-	begin := frontSkip + 2
-	callerIndex := 0
-	panicFound, panicSearching := false, false
-	var n int
 	var pcs []uintptr
-	var frame runtime.Frame
-	var funcname string
-	var funcs []string
+	var n int
 	for size := 32; ; size += 16 {
 		pcs = make([]uintptr, size)
 		n = runtime.Callers(0, pcs)
@@ -92,40 +33,47 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 		}
 	}
 
+	var funcName string
+	begin := frontSkip + 2
+	callerIndex := 0
+	panicFound, panicSearching := false, false
 	frames := runtime.CallersFrames(pcs[:n])
+	frameInfos := make([]runtime.Frame, n)
 	more := n > 0
 	n = 0
 	for more {
-		frame, more = frames.Next()
+		frameInfos[n], more = frames.Next()
+		funcName = frameInfos[n].Function
 		if n > 0 {
-			if (hideTheCallStartFunc != "") && (strings.LastIndex(frame.Function, hideTheCallStartFunc) != -1) {
-				if callerIndex <= begin {
-					callerIndex = n
-				}
-			} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(frame.Function) {
-				if callerIndex <= begin {
-					callerIndex = n
-				}
-			} else if frame.Function == "runtime.goexit" || frame.Function == "testing.tRunner" {
+			if funcName == "runtime.goexit" || funcName == "testing.tRunner" {
 				break
+			}
+			if (hideTheCallStartFunc != "") && (strings.LastIndex(funcName, hideTheCallStartFunc) != -1) {
+				if callerIndex <= begin {
+					callerIndex = n
+				}
+			} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(funcName) {
+				if callerIndex <= begin {
+					callerIndex = n
+				}
 			}
 		}
 		// 若是系統自動引發panic則會在發生錯誤的地方呼叫panic()，所以必須跳過堆疊上方自動呼叫的部分
 		if !panicFound {
 			if panicSearching {
-				if !strings.HasPrefix(frame.Function, "runtime.") {
+				if !strings.HasPrefix(funcName, "runtime.") {
 					begin = n // 這裡假設叫用者不知道這是panic，所以begin就不加上frontSkip
 					panicFound = true
 				}
 			} else {
-				switch frame.Function {
+				switch funcName {
 				case "runtime.gopanic", "runtime.panic", "runtime.sigpanic":
 					panicSearching = true
 				}
 			}
 		}
 		n++
-		if frame.Function == "main.main" {
+		if funcName == "main.main" {
 			break
 		}
 	}
@@ -136,19 +84,11 @@ func (cs *SCallstack) GetCallstack(frontSkip int, hideTheCallStartFunc string) {
 		n = callerIndex
 	}
 
-	frames = runtime.CallersFrames(pcs[begin:n])
 	n -= begin
 	cs.callers = make([]SCaller, n)
 	callers := cs.callers
-	more = n > 0
-	for index := 0; more; index++ {
-		frame, more = frames.Next()
-		_, funcname = path.Split(frame.Function)
-		funcs = strings.SplitN(funcname, ".", 2)
-		callers[index].Package = funcs[0]
-		callers[index].Function = funcs[len(funcs)-1]
-		callers[index].File = frame.File
-		callers[index].Line = int64(frame.Line)
+	for index := 0; index < n; index, begin = index+1, begin+1 {
+		callers[index].FromFrame(&frameInfos[begin])
 	}
 }
 
@@ -162,47 +102,48 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 	callerIndex := 0
 	var n int
 	var pcs []uintptr
-	var frame runtime.Frame
-	var funcname string
-	var funcs []string
+	var funcName string
 	for size > 0 {
 		pcs = make([]uintptr, size)
 		n = runtime.Callers(0, pcs)
 		if n < size {
 			frames := runtime.CallersFrames(pcs[:n])
+			frameInfos := make([]runtime.Frame, n)
 			more := n > 0
 			n = 0
 			for more {
-				frame, more = frames.Next()
+				frameInfos[n], more = frames.Next()
+				funcName = frameInfos[n].Function
 				if n > 0 {
-					if (hideTheCallStartFunc != "") && (strings.LastIndex(frame.Function, hideTheCallStartFunc) != -1) {
-						if callerIndex <= begin {
-							callerIndex = n
-						}
-					} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(frame.Function) {
-						if callerIndex <= begin {
-							callerIndex = n
-						}
-					} else if frame.Function == "runtime.goexit" || frame.Function == "testing.tRunner" {
+					if funcName == "runtime.goexit" || funcName == "testing.tRunner" {
 						break
+					}
+					if (hideTheCallStartFunc != "") && (strings.LastIndex(funcName, hideTheCallStartFunc) != -1) {
+						if callerIndex <= begin {
+							callerIndex = n
+						}
+					} else if (hideTheCallStartFunc == "") && IsDefaultHiddenCaller(funcName) {
+						if callerIndex <= begin {
+							callerIndex = n
+						}
 					}
 				}
 				// 若是系統自動引發panic則會在發生錯誤的地方呼叫panic()，所以必須跳過堆疊上方自動呼叫的部分
 				if !panicFound {
 					if panicSearching {
-						if !strings.HasPrefix(frame.Function, "runtime.") {
+						if !strings.HasPrefix(funcName, "runtime.") {
 							begin = n + frontSkip // 叫用者明確知道這是panic，所以要跳過多少層是由叫用者自己決定
 							panicFound = true
 						}
 					} else {
-						switch frame.Function {
+						switch funcName {
 						case "runtime.gopanic", "runtime.panic", "runtime.sigpanic":
 							panicSearching = true
 						}
 					}
 				}
 				n++
-				if frame.Function == "main.main" {
+				if funcName == "main.main" {
 					break
 				}
 			}
@@ -213,19 +154,11 @@ func (cs *SCallstack) GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc 
 				n = callerIndex
 			}
 
-			frames = runtime.CallersFrames(pcs[begin:n])
 			n -= begin
 			cs.callers = make([]SCaller, n)
 			callers := cs.callers
-			more = n > 0
-			for index := 0; more; index++ {
-				frame, more = frames.Next()
-				_, funcname = path.Split(frame.Function)
-				funcs = strings.SplitN(funcname, ".", 2)
-				callers[index].Package = funcs[0]
-				callers[index].Function = funcs[len(funcs)-1]
-				callers[index].File = frame.File
-				callers[index].Line = int64(frame.Line)
+			for index := 0; index < n; index, begin = index+1, begin+1 {
+				callers[index].FromFrame(&frameInfos[begin])
 			}
 			break
 		} else {
@@ -261,6 +194,13 @@ func (cs *SCallstack) Clean() {
 // 		}
 // 	}
 // }
+
+// 打印出呼叫堆疊
+func (cs *SCallstack) Print() {
+	for _, caller := range cs.callers {
+		fmt.Printf("%s:%d %s()\n", caller.File, caller.Line, caller.Function)
+	}
+}
 
 // 獲取目前的呼叫堆疊資訊，並且去除掉golang框架的堆疊部分，如果這是個panic，則會從發生panic的地方開始列出
 // frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方也會出現在呼叫堆疊中
