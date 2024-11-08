@@ -140,6 +140,7 @@ func (cs *SCallstack) getCallstack(begin, skipWithPanic int, hideTheCallStartFun
 // 獲取目前的呼叫堆疊資訊，並且去除掉golang框架的堆疊部分，如果這是個panic，則會從發生panic的地方開始列出
 // frontSkip:				從叫用 GetCallstack() 的地方開始，要往上略過多少層，0:叫用GetCallstack()的地方也會出現在呼叫堆疊中
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
+// 您也可以自己建立SCallstack並呼叫SCallstack.GetCallstack(frontSkip, hideTheCallStartFunc)
 func GetCallstack(frontSkip int, hideTheCallStartFunc string) *SCallstack {
 	cs := &SCallstack{}
 	cs.getCallstack(frontSkip+3, 0, hideTheCallStartFunc) // skipWithPanic給0，這裡假設叫用者不知道這是panic，所以就不加上frontSkip
@@ -149,6 +150,7 @@ func GetCallstack(frontSkip int, hideTheCallStartFunc string) *SCallstack {
 // 獲取目前的呼叫堆疊資訊，並且去除掉golang框架的堆疊部分，配合recover()使用
 // frontSkip:				從發生 panic 的地方開始，要往上略過多少層，0:從發生 panic 的地方開始列出
 // hideTheCallStartFunc:	要隱藏的最上層呼叫者，使之從它以下才會開始出現在呼叫堆疊
+// 您也可以自己建立SCallstack並呼叫SCallstack.GetCallstackWithPanic(frontSkip, hideTheCallStartFunc)
 func GetCallstackWithPanic(frontSkip int, hideTheCallStartFunc string) *SCallstack {
 	cs := &SCallstack{}
 	cs.getCallstack(frontSkip, frontSkip, hideTheCallStartFunc) // frontSkip不用+，panic固定從發生的地方開始推算
